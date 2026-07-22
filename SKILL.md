@@ -40,7 +40,14 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
 ## Defaults (state these, then proceed)
 
 - **Output location:** `docs/bible/` in the root of the working directory — **kept untracked.** On create, if the repo tracks `docs/`, add `docs/bible/`, `docs/bible/_build/`, and `.DS_Store` to `.gitignore` and say so. Never commit a bible into a tracked repo unless the user names that path — a derived artifact drifting under version control rots and misleads.
-- **Record the canonical location.** On first create, write a project-memory note (or a `.claude/` marker) recording the bible's path + created date, so UPDATE/READ find the *one* canonical copy instead of guessing and spawning duplicates.
+- **Record the canonical location** in a project-local marker: `<project>/.claude/bible.json` (project-scoped, never `~/.claude` — a global file would collide across projects). The value is a **list**, so a monorepo can hold more than one bible without clobbering:
+
+  ```json
+  // <project>/.claude/bible.json
+  { "bibles": [ { "path": "docs/bible", "scope": "root", "created": "2026-07-22" } ] }
+  ```
+
+  Write/append an entry on create; read it on every update/read to find the *one* canonical copy for the scope instead of guessing and spawning duplicates. Add `.claude/bible.json` to `.gitignore` if `.claude/` is tracked.
 - **Multi-file by default.** A single mega-file becomes unmaintainable. BUT **always ask first** whether they want one single file instead — *especially for small projects* (≲15 routes / ≲10 models, or a single-package repo). Offer single-file when the whole thing would be < ~800 lines.
 - **Cross-link everything.** Every mention of a table → its schema entry; every endpoint → its BE domain section; every FE page's API call → that endpoint's anchor; every requirement → the code that implements it. The doc set is a clickable web: requirement → page → API → controller → model → table → back.
 - **Cite real locations** as `path:line` (clickable). Never invent line numbers — grep for them.
@@ -67,6 +74,7 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
 ## MODE: CREATE
 
 ### Phase 0 — Recon & plan (do before any writing)
+0. **Check for an existing bible first.** Read `<project>/.claude/bible.json`. If an entry already covers this scope, switch to UPDATE mode — do not fork a second copy. Also scan for stray bible folders (`docs/bible*`, `**/bible/00-overview.md`); if copies exist but no marker, ask which is canonical, record it, and treat the rest as stale.
 1. Read orientation only: root + sub-package `README`/`CLAUDE.md`/`AGENTS.md`, route manifest files, the scheduler/cron file. Skip giant auto-generated READMEs (summarize in sandbox if needed).
 2. **DB schema source:** prefer **DDL of the live/migrated DB** (`CREATE TABLE` + sequences) over a binary dump. If only a binary dump exists, ask the user for a DDL/`sqlfile` export (you cannot parse binary). Migrations explain *intent*; DDL is the truth.
 3. **Detect a blueprint source** for the URS pillar: look for `docs/URS/`, `PRD*`, `*.srs`, `requirements*`, a specs folder, product docs. If found → the URS pillar is in scope (Phase 4b). If none → note it; offer later to derive an *inferred* blueprint from code, or skip. Never fabricate requirements.
@@ -169,7 +177,7 @@ The genuine Obsidian win is *human* visual exploration (graph/backlinks), not AI
 
 ## MODE: UPDATE
 
-1. Locate the existing bible: **check project memory / the `.claude/` marker for the recorded canonical path first** (set on create). Default `docs/bible/`; respect a renamed/relocated copy. If multiple copies exist, ask which is canonical and record it.
+1. Locate the existing bible: **read `<project>/.claude/bible.json` first** and use the entry matching your scope. If the marker is missing, fall back to `docs/bible/`; if multiple copies exist with no marker, ask which is canonical and write the marker so it never happens again.
 2. Read only the section(s) affected. Prefer `Edit` (targeted) over `Write` (full rewrite) to avoid clobbering user edits. Before any full rewrite, diff current vs intended and surface discrepancies.
 3. When adding research/findings, resolve any matching `> ❓ OPEN` items and record the resolution + date. **Bump the `Audited:` stamp** on every file you touch.
 4. Keep cross-links intact; **re-run the link-integrity check** after edits.
@@ -177,7 +185,7 @@ The genuine Obsidian win is *human* visual exploration (graph/backlinks), not AI
 ## MODE: READ
 
 Answer questions *from the bible* — do not re-read the whole codebase.
-1. Find the canonical bible path (memory/marker), then `grep -ri` the bible folder for the topic; collect hits per doc.
+1. Find the canonical bible path from `<project>/.claude/bible.json`, then `grep -ri` the bible folder for the topic; collect hits per doc.
 2. Synthesize an answer from the documented pieces, citing which doc/section.
 3. If the topic is scattered with no consolidated section, say so and **offer to add a consolidated section** (don't auto-create). If the bible lacks the info, say that and offer to research the code. Note the file's `Audited:` date if the answer might be stale.
 
