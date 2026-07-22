@@ -23,10 +23,10 @@ none exists, do not fabricate requirements — offer an inferred blueprint or sk
    Absence is the weakest claim — a bad search and a genuine gap look identical, so
    confirm a "Missing" with a second search angle before recording it.
 3. Classify status:
-   - ✅ **Met** — implemented, matches the spec.
-   - 🟡 **Partial** — partially implemented or deviates.
-   - ❌ **Missing** — no implementation found (confirmed by ≥2 search angles).
-   - ❓ **Unverified** — cannot confirm from code (infra / manual / external / migration).
+  - ✅ **Met** — implemented, matches the spec.
+  - 🟡 **Partial** — partially implemented or deviates.
+  - ❌ **Missing** — no implementation found (confirmed by ≥2 search angles).
+  - ❓ **Unverified** — cannot confirm from code (infra / manual / external / migration).
 4. Note spec-internal contradictions or ambiguities you hit (raise with the product
    owner — these are not code bugs).
 5. Pay special attention to concrete rules where drift hides: SLA day counts (working vs

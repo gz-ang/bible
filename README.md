@@ -6,7 +6,7 @@ reference documentation that approximates a codebase's source of truth from thre
 - **Code = the factory** — what the system actually does (FE routes, BE domains).
 - **URS/PRD/spec = the product blueprint** — what it was promised to do (compliance audit
   traced to `file:line`, when a spec exists).
-- **Database schema = the raw material** — tables ↔ models, columns, sequences, dead tables.
+- **Database schema = the raw material** — tables ↔ models, columns, PK/ID strategy, dead tables.
 
 Plus the **cross-pillar relationships** (requirement ↔ FE page ↔ endpoint ↔ table) and an
 optional **e2e / testing-enablement** layer (roles, selectors, tagged journeys, seed state).

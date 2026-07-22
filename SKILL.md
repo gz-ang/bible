@@ -1,8 +1,7 @@
 ---
 name: bible
-description: Generate, update, or read a project "bible" — comprehensive, cross-linked onboarding/reference documentation that approximates a codebase's source of truth from three pillars — the code (frontend routes: components, nested components, BE API calls on mount vs action, role-guarded flow maps; and backend domains: models/tables/fillable/ID-gen, controllers→routes, services/repositories/factories/requests/resources, events→listeners with fire sites, queues/jobs, commands+schedule, payment-integration, configs), the requirements blueprint (URS/PRD/SRS compliance audit traced to file:line, when a spec exists), and the database schema (tables↔models, columns, _SEQ presence, unused/backup tables) — plus their cross-pillar relationships and an optional e2e/testing-enablement layer. Use when the user asks to create, update, or read a project bible / 101 / onboarding doc, or invokes /bible. Default output is an untracked docs/bible/, multi-file, fully cross-linked.
+description: "Generate, update, or read a project \"bible\" — comprehensive, cross-linked onboarding/reference documentation that approximates a codebase's source of truth from three pillars — the code (frontend routes: components, nested components, BE API calls on mount vs action, role-guarded flow maps; and backend domains: models/tables/fillable/ID-gen, controllers→routes, services/repositories/factories/requests/resources, events→listeners with fire sites, queues/jobs, commands+schedule, payment-integration, configs), the requirements blueprint (URS/PRD/SRS compliance audit traced to file:line, when a spec exists), and the database schema (tables↔models, columns, PK/ID strategy, unused/backup tables) — plus their cross-pillar relationships and an optional e2e/testing-enablement layer. Use when the user asks to create, update, or read a project bible / 101 / onboarding doc, or invokes /bible. Default output is an untracked docs/bible/, multi-file, fully cross-linked."
 ---
-
 # /bible — Project Bible Builder
 
 Build and maintain a "bible": living onboarding + reference documentation that acts as the compass to a codebase. Three modes: **create**, **update**, **read**. Infer the mode from the request (or ask if ambiguous).
@@ -24,9 +23,9 @@ The bible is **not** the absolute source of truth — it is *written and derived
 The bible is only useful while current. On load, check whether the project has an upkeep habit wired up, and offer to add one — **without ever auto-running an update**.
 
 1. Read `settings.json` (project `.claude/settings.json`, else user `~/.claude/settings.json`) for a `bible.upkeepReminder` key.
-   - `"declined"` → the user never wants this. Skip silently. Do nothing.
-   - `"installed"` → already set up. Skip.
-   - **absent** → continue to step 2 (ask once).
+  - `"declined"` → the user never wants this. Skip silently. Do nothing.
+  - `"installed"` → already set up. Skip.
+  - **absent** → continue to step 2 (ask once).
 2. Grep the project + user `CLAUDE.md` for an existing bible-upkeep rule. If one already exists, set `bible.upkeepReminder: "installed"` and skip.
 3. Otherwise, **offer** (one question, respect the answer): "Add a rule reminding me to refresh the bible after major changes?" On **yes**, append to the project `CLAUDE.md` (create if absent) a rule like:
 
@@ -42,10 +41,10 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
 - **Output location:** `docs/bible/` in the root of the working directory — **kept untracked.** On create, if the repo tracks `docs/`, add `docs/bible/`, `docs/bible/_build/`, and `.DS_Store` to `.gitignore` and say so. Never commit a bible into a tracked repo unless the user names that path — a derived artifact drifting under version control rots and misleads.
 - **Record the canonical location** in a project-local marker: `<project>/.claude/bible.json` (project-scoped, never `~/.claude` — a global file would collide across projects). The value is a **list**, so a monorepo can hold more than one bible without clobbering:
 
-  ```json
+```json
   // <project>/.claude/bible.json
   { "bibles": [ { "path": "docs/bible", "scope": "root", "created": "2026-07-22" } ] }
-  ```
+```
 
   Write/append an entry on create; read it on every update/read to find the *one* canonical copy for the scope instead of guessing and spawning duplicates. Add `.claude/bible.json` to `.gitignore` if `.claude/` is tracked.
 - **Multi-file by default.** A single mega-file becomes unmaintainable. BUT **always ask first** whether they want one single file instead — *especially for small projects* (≲15 routes / ≲10 models, or a single-package repo). Offer single-file when the whole thing would be < ~800 lines.
@@ -54,19 +53,20 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
 
 ## Hard rules (always)
 
-- **NEVER read `.env`** or any secrets file. Reference config *keys by name only*, never values. This includes test credentials — reference them by env-key or seeder `file:line`, never the literal secret.
+- **NEVER read .env or any secrets file.** Reference config *keys by name only*, never values. This includes test credentials — reference them by env-key or seeder `file:line`, never the literal secret.
 - **Do not document third-party packages**, Docker, or generic infra. Services (object storage, cache, payment gateway, mail) may be *mentioned* by role, not detailed.
 - **Focus on core feature domains.** Auth, logging, and audit get a *short summary* only.
 - **Do not guess.** If ID-gen, a table's purpose, a caveat, or a relationship is unclear, write an inline `> ❓ OPEN: <question>` and keep going. Surface open questions at the end for the user/dev to confirm.
 - **Verify before asserting.** Reference counts, "unused" claims, fire sites, and compliance verdicts come from grep, not assumption. "Active vs unused" = does code actually reference it (`grep -r`), not just "has a model." Absence is the weakest claim — confirm a negative with a second search angle before recording it.
 - **Stamp every shipped file** with `Audited: <YYYY-MM-DD>`.
+- **Name no DB technology you haven't verified.** Never say Oracle/Postgres/MySQL/etc. unless confirmed from the codebase (config, compose, DDL, driver). Report the actual engine and its actual ID mechanism — no defaults, no guessing.
 
 ## Context-window protection (this is a large task)
 
-- **Estimate first.** Size the repo (page count, model count, route files, DB table count, DDL size, spec page count). If raw reading would blow the budget, do NOT read everything.
-- **Fan out with sub-agents**, one per domain/route-file group / spec module. Each sub-agent reads raw files in *its* context and **writes its own output file**, returning only a short summary (file path + events/jobs/commands/gaps it found + open questions). Tell agents explicitly: "WRITE THE FILE YOURSELF; do not ask for approval; do not return content inline." (Agents sometimes stall otherwise.)
-- **Parse big data files in a sandbox**, not into context: DDL → columns, model→table maps, event-listener maps, extracted spec text. Print only summaries; write generated docs directly to disk.
-- **Give every sub-agent a shared spec file** (anchor convention + per-domain template) so output is consistent and links don't rot. Keep these specs + parsed intermediates in a `_build/` subfolder (ephemeral, gitignored — not part of the shipped bible).
+- **Estimate first.** Size the repo (page count, model count, route files, DB table count, DDL size, spec page count). **If raw reading would blow the budget, do NOT read everything.**
+- **Fan out with sub-agents**, one per domain/route-file group / spec module. Each sub-agent reads raw files in *its* context and **writes its own output file**, returning only a short summary (file path + events/jobs/commands/gaps it found + open questions). **Tell agents explicitly: "WRITE THE FILE YOURSELF; do not ask for approval; do not return content inline." (Agents sometimes stall otherwise.)**
+- **Parse big data files in a sandbox**, not into context: DDL → columns, model→table maps, event-listener maps, extracted spec text. **Print only summaries; write generated docs directly to disk.**
+- **Give every sub-agent a shared spec file (anchor convention + per-domain template) so output is consistent and links don't rot.** Keep these specs + parsed intermediates in a `_build/` subfolder (ephemeral, gitignored — not part of the shipped bible).
 - Compact at phase boundaries (BE → FE → DB → blueprint are largely independent).
 
 ---
@@ -74,12 +74,12 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
 ## MODE: CREATE
 
 ### Phase 0 — Recon & plan (do before any writing)
-0. **Check for an existing bible first.** Read `<project>/.claude/bible.json`. If an entry already covers this scope, switch to UPDATE mode — do not fork a second copy. Also scan for stray bible folders (`docs/bible*`, `**/bible/00-overview.md`); if copies exist but no marker, ask which is canonical, record it, and treat the rest as stale.
-1. Read orientation only: root + sub-package `README`/`CLAUDE.md`/`AGENTS.md`, route manifest files, the scheduler/cron file. Skip giant auto-generated READMEs (summarize in sandbox if needed).
-2. **DB schema source:** prefer **DDL of the live/migrated DB** (`CREATE TABLE` + sequences) over a binary dump. If only a binary dump exists, ask the user for a DDL/`sqlfile` export (you cannot parse binary). Migrations explain *intent*; DDL is the truth.
-3. **Detect a blueprint source** for the URS pillar: look for `docs/URS/`, `PRD*`, `*.srs`, `requirements*`, a specs folder, product docs. If found → the URS pillar is in scope (Phase 4b). If none → note it; offer later to derive an *inferred* blueprint from code, or skip. Never fabricate requirements.
-4. Extract object inventories in a sandbox: table names, sequence names, model→`$table` map, route→controller map, events/listeners/jobs/commands lists.
-5. **Propose the file structure + context plan; ask the single-file question and whether they want the optional e2e-enablement layer.** Wait for confirmation. Suggested multi-file layout (adapt names to the stack):
+1. **Check for an existing bible first.** Read `<project>/.claude/bible.json`. If an entry already covers this scope, switch to UPDATE mode — do not fork a second copy. Also scan for stray bible folders (`docs/bible*`, `**/bible/00-overview.md`); if copies exist but no marker, ask which is canonical, record it, and treat the rest as stale.
+2. Read orientation only: root + sub-package `README`/`CLAUDE.md`/`AGENTS.md`, route manifest files, the scheduler/cron file. Skip giant auto-generated READMEs (summarize in sandbox if needed).
+3. **DB schema source:** prefer **DDL of the live/migrated DB** (`CREATE TABLE` + sequences if the engine has them) over a binary dump. If only a binary dump exists, ask the user for a DDL/`sqlfile` export (you cannot parse binary). Migrations explain *intent*; DDL is the truth. **Identify the DB engine first** (from `config`/compose/DDL/driver) and only mine engine-specific constructs that actually exist.
+4. **Detect a blueprint source** for the URS pillar: look for `docs/URS/`, `PRD*`, `*.srs`, `requirements*`, a specs folder, product docs. If found → the URS pillar is in scope (Phase 4b). If none → note it; offer later to derive an *inferred* blueprint from code, or skip. Never fabricate requirements.
+5. Extract object inventories in a sandbox: table names, sequence names (if the engine has sequences), model→`$table` map, route→controller map, events/listeners/jobs/commands lists.
+6. **Propose the file structure + context plan; ask the single-file question and whether they want the optional e2e-enablement layer.** **Wait for confirmation. Suggested multi-file layout (adapt names to the stack):**
 
 ```
 docs/bible/                    # untracked
@@ -93,7 +93,7 @@ docs/bible/                    # untracked
   22-be-commands.md            # commands + signatures + schedule
   23-payments.md               # dedicated payment-integration section (gateway, webhook flow, statuses, tables)
   24-configs.md                # project-relevant config keys (no secrets)
-  30-db-schema.md              # tables↔models, columns, _SEQ, active/raw/legacy/backup classification
+  30-db-schema.md              # tables↔models, columns, PK/ID strategy (+ sequences if the engine uses them), active/raw/legacy/backup classification
   40-urs-compliance.md         # (if a spec exists) master compliance scorecard
   urs-audit/<mod>.md           # (if a spec exists) per-module requirement tables → file:line
   41-traceability.md           # relationship spine: requirement ↔ FE page ↔ endpoint ↔ table
@@ -103,7 +103,7 @@ docs/bible/                    # untracked
 
 ### Phase 1 — BE domains (sub-agents, one per route-file/domain group)
 Per domain, the section must cover:
-- **Models:** class, `$table`, **ID generation** (DB sequence `{TABLE}_SEQ` vs a `nextId()/generate_id()`=MAX+1 helper — state which, verified from model/repo/factory), key fillable, relations.
+- **Models:** class, `$table`, **ID generation** — detect from model/migration/DDL, do not assume a default: auto-increment/identity column · framework UUID/ULID (`HasUuids`, `uuid`/`ulid` default) · named DB sequence (`{TABLE}_SEQ`, `nextval(...)`) · application helper (`MAX+1`, snowflake, nanoid) · composite/natural key. Key fillable, relations.
 - **Endpoints:** `METHOD /uri` · route `file:line` · `Controller@method` · middleware/roles · service(s) called · notes.
 - **Services / Repositories / Factories / Requests / Resources** with one-line purpose.
 - **Events fired / jobs dispatched / commands** it touches (list for the cross-cutting docs).
@@ -121,7 +121,7 @@ Per domain, the section must cover:
 - Determine role guards from the real source (global middleware + menu/nav config), not just per-page meta. Build the flow map per role; diagram key flows (mermaid). **Mermaid tip:** quote node labels `["/path/:id"]`; do NOT use `[/label/]` (parallelogram) when labels contain `/ : ( )`.
 
 ### Phase 4 — DB schema
-Generate `30-db-schema.md` programmatically (sandbox): for each table emit anchor heading, columns (from DDL), model link (from model map), `_SEQ` presence, and a **classification**: model-backed / raw-active (no model but referenced in code) / infra / view / backup / legacy (zero code refs). Use `grep -r` reference counts to separate "no model but used" from "dead." List sequences with no convention-matched table (don't guess owners).
+Generate `30-db-schema.md` programmatically (sandbox): for each table emit anchor heading, columns (from DDL), model link (from model map), **PK strategy** (auto-increment / UUID / sequence / application-generated), and a **classification**: model-backed / raw-active (no model but referenced in code) / infra / view / backup / legacy (zero code refs). Use `grep -r` reference counts to separate "no model but used" from "dead." If the engine has sequences, list any with no convention-matched table (don't guess owners); skip this for auto-increment/UUID engines.
 
 ### Phase 4b — Blueprint / URS compliance  *(only if Phase 0 found a spec source)*
 Fan out one sub-agent per spec module using `references/urs-audit-spec.md`. Each extracts atomic requirements (`M<n>-R<nnn>`), locates implementing code (`file:line`), classifies `✅/🟡/❌/❓`, and writes `urs-audit/mod-<n>-<slug>.md`. Then roll all modules into `40-urs-compliance.md` (master scorecard + cross-module material gaps + spec inconsistencies). Report-only — **never modify application code.** If no spec source exists, skip this phase (or, if the user asked, derive an inferred blueprint and mark it clearly as inferred, not signed).
@@ -187,7 +187,7 @@ The genuine Obsidian win is *human* visual exploration (graph/backlinks), not AI
 Answer questions *from the bible* — do not re-read the whole codebase.
 1. Find the canonical bible path from `<project>/.claude/bible.json`, then `grep -ri` the bible folder for the topic; collect hits per doc.
 2. Synthesize an answer from the documented pieces, citing which doc/section.
-3. If the topic is scattered with no consolidated section, say so and **offer to add a consolidated section** (don't auto-create). If the bible lacks the info, say that and offer to research the code. Note the file's `Audited:` date if the answer might be stale.
+3. If the topic is scattered with no consolidated section, say so and offer to add a consolidated section (don't auto-create). If the bible lacks the info, say that and offer to research the code. Note the file's `Audited:` date if the answer might be stale.
 
 ---
 
