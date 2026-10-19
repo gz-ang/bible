@@ -19,7 +19,8 @@ none exists, do not fabricate requirements — offer an inferred blueprint or sk
 ## Method
 1. Extract **atomic** requirements (every "shall / must / should" + each described
    behavior). Give each a stable REQ-ID `M<module>-R<nnn>`.
-2. For each requirement, locate implementing code (grep/glob/read). Cite `file:line`.
+2. For each requirement, locate implementing code (grep/glob/read). Cite it as a symbol anchor
+   (`references/citations.md`); add `~"text"` only when the verdict hinges on one statement.
    Absence is the weakest claim — a bad search and a genuine gap look identical, so
    confirm a "Missing" with a second search angle before recording it.
 3. Classify status:
@@ -34,19 +35,33 @@ none exists, do not fabricate requirements — offer an inferred blueprint or sk
    auth/roles, webhook/async flows.
 
 ## Output file: `<bible>/urs-audit/mod-<N>-<slug>.md`
+
+The file is a **scorecard plus open divergences**, written so the next update re-checks ✅ rows by script
+instead of rewriting them:
+
+- ✅ rows: one short requirement phrase, one citation, nothing else. The checker keeps them current; an
+  agent only re-reads one when its cited file changed.
+- 🟡 / ❌ / ❓ rows: the only place for explanation — what the spec says, what the code does, the citation.
+- No history: no "fixed in round N", no "RESOLVED", no dated notes. A divergence that closes becomes a ✅
+  row and leaves the divergence list. What changed belongs in findings docs.
+
 ```
 # Module <N> — <Title> — Blueprint Compliance Audit
-Source: <spec path> · Audited: <YYYY-MM-DD> · report-only
+Source: <spec path> · Audited: <YYYY-MM-DD> @ <commit> · report-only
 
 ## Scorecard
 Total: T · ✅ Met: a · 🟡 Partial: b · ❌ Missing: c · ❓ Unverified: d
 
-## Key gaps (top 5, most material first)
-- ...
+## Open divergences (most material first)
+| REQ-ID | Spec says | Code does | Status | Evidence |
+|---|---|---|---|---|
+
+## Code has, spec lacks
+- <behaviour> — <citation>
 
 ## Requirements
-| REQ-ID | Spec § / pg | Requirement (concise) | Status | Code evidence (file:line) | FE page | Endpoint | Table(s) | Notes / gap |
-|---|---|---|---|---|---|---|---|---|
+| REQ-ID | Spec § / pg | Requirement (concise) | Status | Evidence | FE page | Endpoint | Table(s) |
+|---|---|---|---|---|---|---|---|
 
 ## Spec ambiguities / contradictions noted
 - ...
@@ -57,8 +72,10 @@ them where known so the master traceability spine can be assembled without re-de
 
 ## Master scorecard: `<bible>/40-urs-compliance.md`
 Roll every module up into one scorecard table (module · total · met · partial · missing ·
-unverified · % met), a **cross-module material-gaps** list (most severe first), and a
-**spec-inconsistencies** list. Link each module to its per-module file. Stamp `Audited:`.
+unverified · % met), a **cross-module open divergences** list (most severe first), and a
+**spec-inconsistencies** list. Link each module to its per-module file. Stamp `Audited: <date> @ <commit>`.
+The same shape applies when the "spec" is a contract doc compliance file inside the bible
+(e.g. `40-contract-compliance.md`): scorecard, open divergences, code-has-spec-lacks, ✅ rows terse.
 
 ## Return to caller (concise, <200 words)
 - Output file path

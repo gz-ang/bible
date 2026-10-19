@@ -9,7 +9,7 @@ did not record selectors, test accounts, per-role journeys, or which flows are
 destructive. Each test session re-derived them from scratch. This captures them once.
 
 ## Hard rule — secrets
-Reference test accounts **by env-key name or source `file:line` only**. NEVER copy secret
+Reference test accounts **by env-key name or a source citation only**. NEVER copy secret
 values (passwords, tokens, OTP secrets) into the bible. `email = <see AUTH_TEST_USER>` /
 "credentials seeded in `database/seeders/…:NN`" — never the literal password. Same `.env`
 prohibition as the rest of the skill.
@@ -22,7 +22,7 @@ prohibition as the rest of the skill.
 
 ### 2. Roles & test accounts
 - One row per role: role code · what it can do (one line) · account reference (env-key or
-  seeder `file:line`) · login path · post-login landing route.
+  seeder citation) · login path · post-login landing route.
 - Note the auth mechanism (password / OTP / SSO) and any step a headless test must fake
   or bypass (e.g. OTP — point at the dev bypass if one exists, by location).
 
@@ -45,9 +45,9 @@ prohibition as the rest of the skill.
 
 ### 5. Seed / state prerequisites
 - What data must exist for each journey to run (a pending application, a paid invoice, a
-  reserved number). Point at the seeder / factory (`file:line`) that creates it, or note
+  reserved number). Point at the seeder / factory (symbol citation) that creates it, or note
   "must be created by an earlier journey."
 
 ## Cross-links & stamp
-Every page/endpoint/table mention links to its reference anchor. Stamp `Audited:`.
+Every page/endpoint/table mention links to its reference anchor. Stamp `Audited: <date> @ <commit>`. Cite in the grammar of `citations.md`.
 This doc drifts fastest (UI changes) — flag it for refresh whenever FE pages change.
