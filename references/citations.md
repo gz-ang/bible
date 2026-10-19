@@ -108,6 +108,35 @@ true of that construct. That is why, after a code change, citations into changed
 (`check --range`) and every non-ok status go to an agent who reads the sentence against the code.
 A citation whose file did not change and which resolves `ok` needs no re-reading.
 
+## Languages
+
+The grammar is language-agnostic: any tracked file can be cited, with or without an extension
+(`docker/Dockerfile`). Only symbol lookup knows about languages:
+
+| Files | Symbol lookup |
+|---|---|
+| ts/tsx/js/vue, php/blade, py, md, css/scss, json, yaml | dedicated patterns |
+| everything else (C#, Java, Kotlin, Go, Rust, Swift, C/C++, Ruby, shell, SQL, …) | generic patterns: keyword-led definitions (`class`/`struct`/`record`/`interface`/`enum`/`fn`/`func`/`def`/`CREATE TABLE`…), modifier-led methods/properties/consts; Allman braces handled |
+| html, xml, cshtml, razor, svg, txt, csv | none: cite with text anchors |
+
+A symbol the patterns cannot find is `unresolved`, never `ok`: rewrite it as a text anchor
+(`path~"exact line text"`), which works in every file. A slash-less token that names no file in the repo
+(`button.pill::before`) is treated as code in prose, not as a citation.
+
+## Running without the checker
+
+The bible does not require the checker. When it cannot run (no Python, or the user opts out), the
+citations are still written in the grammar (readers find them by search), but they are **unchecked**
+and must say so:
+
+- Marker: `"citation_check": "unchecked"` on the bible's entry in `.claude/bible.json`.
+- Stamps: `Audited: <date> @ <commit> · citations unchecked`.
+- No resolved links (`#L` lines) are written by hand.
+
+The first run that ends with `check` all `ok` removes the suffix from the stamps and sets
+`"citation_check": "checked"`. An UPDATE of an unchecked bible re-reads citations by agent, as before
+the checker existed.
+
 ## Migrating a bible with `path:line` citations
 
 1. Snapshot the bible to `_build/archive/<date>-pre-anchors/`.

@@ -41,8 +41,9 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field, asdict
 
-EXT = r"(?:ts|tsx|js|mjs|cjs|vue|css|scss|php|py|md|json|sh|sql|html|yaml|yml|toml|blade\.php)"
-PATH_RE = rf"[\w.@/-]+\.{EXT}"
+# Any file: a path with a letter-led extension, or an extension-less path with a directory part
+# (`docker/Dockerfile`). No language list here, so no file type is ever skipped silently.
+PATH_RE = r"(?:[\w.@/-]*?[\w@-]\.[A-Za-z]\w*|(?:[\w.@-]+/)+[\w@-][\w.@-]*)"
 
 # canonical: `path::sym`, `path::sym~"text"`, `path~"text"`, each optionally `:NNN`
 CANON_RE = re.compile(
@@ -93,6 +94,24 @@ DEF_PATTERNS = {
     ],
     "py": [r"^\s*(?:async\s+)?def\s+{n}\b", r"^\s*class\s+{n}\b", r"^{n}\s*[:=]"],
     "json": [r"^\s*\"{n}\"\s*:"],
+    # Markup has no symbols: cite it with text anchors.
+    "markup": [],
+    # Any other language (C#, Java, Kotlin, Go, Rust, Swift, C/C++, Ruby, shell, SQL, ...).
+    "generic": [
+        r"^\s*(?:[\w@#\[\]]+\s+)*?(?:class|struct|record|interface|enum|trait|protocol|object|module|namespace"
+        r"|typealias|type|fn|func|fun|def|function|sub|proc|impl)\s+{n}\b",
+        r"^\s*func\s+\([^)]*\)\s*{n}\b",
+        r"^\s*(?:(?:public|private|protected|internal|static|virtual|override|abstract|sealed|async|partial|extern"
+        r"|unsafe|new|final|synchronized|open|suspend|inline|readonly|required|pub(?:\([^)]*\))?|export|const)\s+)+"
+        r"(?:[\w<>\[\],.?()*&:]+\s+)?{n}\s*(?:<[^>]*>)?\s*[({{=:;]",
+        r"^\s*(?:const|let|var|val|static)\s+(?:mut\s+)?(?:[\w<>\[\],.?]+\s+)?{n}\s*[=:;]",
+        r"(?i:^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|FUNCTION|PROCEDURE|INDEX|TRIGGER|TYPE)\s+"
+        r"(?:IF\s+NOT\s+EXISTS\s+)?)[`\"\[]?{n}\b",
+        r"^\s*{n}\s*\(\)\s*\{{",
+        None,
+        r"^\s*(?!(?:return|await|new|throw|if|while|for|foreach|switch|using|else|case|yield|var|let|const|val|goto)\b)"
+        r"(?:[\w<>\[\],.?*&]+\s+)+{n}\s*(?:<[^>]*>)?\s*\((?!.*;\s*$)",
+    ],
     "yaml": [r"^\s*{n}\s*:"],
     "md": [r"^#{{1,6}}\s+(?:§\s*)?{n}(?!\w|\.\w)"],
     "css": [r"^\s*{n}\s*[,{{]"],
@@ -101,6 +120,8 @@ LANG_BY_EXT = {
     "ts": "ts", "tsx": "ts", "js": "ts", "mjs": "ts", "cjs": "ts", "vue": "ts",
     "php": "php", "blade.php": "php", "py": "py", "md": "md", "css": "css", "scss": "css",
     "json": "json", "yaml": "yaml", "yml": "yaml",
+    "html": "markup", "htm": "markup", "xml": "markup", "cshtml": "markup", "razor": "markup", "svg": "markup",
+    "txt": "markup", "csv": "markup",
 }
 
 
@@ -306,7 +327,10 @@ class Graph:
 def lang_of(path):
     if path.endswith(".blade.php"):
         return "php"
-    return LANG_BY_EXT.get(path.rsplit(".", 1)[-1], None)
+    base = os.path.basename(path)
+    if "." not in base:
+        return "generic"
+    return LANG_BY_EXT.get(base.rsplit(".", 1)[-1].lower(), "generic")
 
 
 def grep_def(lines, path, sym):
@@ -360,7 +384,7 @@ def grep_span_end(lines, path, start):
                 return i - 1
         return n
     depth, opened, state = 0, False, None  # state: None | "'" | '"' | "`" | "/*"
-    hash_comments = lang == "php"
+    hash_comments = lang in ("php", "generic")  # also C# #region, shell, Ruby; Rust #[attr] is kept below
     for i in range(start, n + 1):
         l, j, code = lines[i - 1], 0, []
         while j < len(l):
@@ -393,10 +417,13 @@ def grep_span_end(lines, path, start):
         if state in ("'", '"'):
             state = None  # unterminated quote on a line: not a multi-line string in these languages
         text = "".join(code).rstrip()
-        if opened and depth <= 0:
+        nxt = next((x.strip() for x in lines[i:i + 3] if x.strip()), "")
+        allman = nxt.startswith("{")  # C#/Java style: the body's brace sits on the next line
+        if opened and depth <= 0 and not allman:
             return i
         if not opened and state is None:
-            if text.endswith(";") or (i == start and not re.search(r"(=>?|\||&|\+|\(|\?|:|\{|\[|\bextends|\bimplements)$", text)):
+            if text.endswith(";") or (i == start and not allman
+                                      and not re.search(r"(=>?|\||&|\+|\(|\?|:|\{|\[|\bextends|\bimplements)$", text)):
                 return i
     return n
 
@@ -478,6 +505,15 @@ def scan_file(bible, p):
 
 # ---------------------------------------------------------------- resolve
 
+def looks_like_code(c: Cite, repo: Repo):
+    """A slash-less token that names no file in the repo (`button.pill::before`, `config.port:3`) is code
+    in prose, not a citation. Citations use full paths, so only root files lack a '/'."""
+    if not c.path or "/" in c.path:
+        return False
+    rp, cands = repo.resolve_path(c.path)
+    return rp is None and not cands
+
+
 def resolve(c: Cite, repo: Repo, graph: Graph | None):
     rp, cands = repo.resolve_path(c.path)
     if rp is None:
@@ -526,7 +562,8 @@ def resolve(c: Cite, repo: Repo, graph: Graph | None):
                     c.status, c.candidates = "ambiguous-move", [f"{f}:{ln}" for f, ln, _ in anywhere]
                     c.note = f"symbol not in {rp}; several elsewhere"
                     return c
-            c.status, c.note = "unresolved", f"symbol not found ({src})"
+            c.status, c.note = "unresolved", (f"symbol not found ({src})" if lang_of(rp) != "markup"
+                                               else "markup has no symbols; use a text anchor")
             return c
         if len(hits) > 1:
             c.status, c.candidates = "ambiguous-symbol", [ln for ln, _ in hits]
@@ -852,7 +889,7 @@ def cmd_check(args, repo, graph, bible):
         changed = set(sh(["git", "diff", "--name-only", "--no-renames", args.range], repo.root, must=True).split("\n")) - {""}
     all_cites = []
     for p in bible_files(bible):
-        cites = scan_file(bible, p)
+        cites = [c for c in scan_file(bible, p) if not looks_like_code(c, repo)]
         rel = os.path.relpath(repo.root, os.path.dirname(p))
         prefix = "" if rel == "." else rel + "/"
         for c in cites:
@@ -919,7 +956,7 @@ def rewrite_file(p, cites, args, rel_prefix=""):
 def cmd_scan(args, repo, graph, bible):
     rows = []
     for p in bible_files(bible):
-        for c in scan_file(bible, p):
+        for c in (c for c in scan_file(bible, p) if not looks_like_code(c, repo)):
             rows.append({"md": c.md, "mdline": c.mdline, "kind": c.kind, "raw": c.raw, "path": c.path,
                          "sym": c.sym, "text": c.text, "line": c.line})
     write_report(args, "scan", rows, bible)

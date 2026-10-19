@@ -46,7 +46,7 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
   { "bibles": [ { "path": "docs/bible", "scope": "root", "created": "2026-07-22",
                   "audited_commit": "1f902df", "audited_at": "2026-07-23",
                   "graph": "graphify-out/graph.json", "citation_format": "v3-symbol-anchors",
-                  "findings_glob": "^docs/findings/" } ] }
+                  "findings_glob": "^docs/findings/", "citation_check": "checked" } ] }
 ```
 
   Write/append an entry on create; read it on every update/read to find the *one* canonical copy for the scope instead of guessing and spawning duplicates. Add `.claude/bible.json` to `.gitignore` if `.claude/` is tracked. `audited_commit` is the **baseline**: the commit every citation was last verified against; UPDATE computes its range from it. `graph` is set only when the project uses graphify; `findings_glob` (regex on repo paths) says where the project keeps findings/RCA docs.
@@ -62,7 +62,7 @@ The rule is a soft nudge that *asks*, by design — it prevents surprise auto-ex
 - **Do not guess.** If ID-gen, a table's purpose, a caveat, or a relationship is unclear, write an inline `> ❓ OPEN: <question>` and keep going. Surface open questions at the end for the user/dev to confirm.
 - **Verify before asserting.** Reference counts, "unused" claims, fire sites, and compliance verdicts come from grep, not assumption. "Active vs unused" = does code actually reference it (`grep -r`), not just "has a model." Absence is the weakest claim — confirm a negative with a second search angle before recording it.
 - **Stamp every shipped file** with `Audited: <YYYY-MM-DD> @ <short commit>`, and only after the checker passes for the whole bible.
-- **Nothing unverified is presented as verified.** Every citation that ships resolves under `tools/bible-cite.py check` (status `ok`), or is visibly marked (`❓ location unverified` + `> ❓ OPEN:`). The script proves the construct exists; a reader (agent or operator) proves the sentence — see *What the checker proves* in `references/citations.md`.
+- **Nothing unverified is presented as verified.** Every citation that ships resolves under `tools/bible-cite.py check` (status `ok`), or is visibly marked (`❓ location unverified` + `> ❓ OPEN:`). If the checker cannot run, the whole bible is labelled unchecked instead (`· citations unchecked` on stamps, `citation_check` in the marker; `references/citations.md` → *Running without the checker*). The script proves the construct exists; a reader (agent or operator) proves the sentence — see *What the checker proves* in `references/citations.md`.
 - **The bible describes the present.** No line history (`shifted from :N`, `was :N`), no round/pass numbers, no dated pass sections, no `✅ RESOLVED` notes. What changed, when, and why belongs in findings docs (the project's findings folder, or `_build/archive/` for removed bible text). A closed issue is simply described as current behaviour, or deleted.
 - **Compliance files are a scorecard plus open divergences.** The scorecard counts verdicts; ✅ rows carry one citation each and are re-checked by the script, not rewritten; prose lives only in 🟡/❌/❓ rows and in the divergence lists ("spec says X, code does Y", "code has, spec lacks"). See `references/urs-audit-spec.md`.
 - **Name no DB technology you haven't verified.** Never say Oracle/Postgres/MySQL/etc. unless confirmed from the codebase (config, compose, DDL, driver). Report the actual engine and its actual ID mechanism — no defaults, no guessing.
